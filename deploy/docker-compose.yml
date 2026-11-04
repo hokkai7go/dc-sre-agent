@@ -11,7 +11,7 @@ services:
       - ./config.yml:/app/config/config.yml:ro
       - ./pve-root-ca.pem:/app/config/pve-root-ca.pem:ro
       - sre-agent-data:/app/data
-    networks: [logstack, proxy]
+    networks: [logstack, proxy]          # VictoriaMetrics/VictoriaLogs と同じネットワーク
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
@@ -21,19 +21,6 @@ services:
       # OAuth の forward-auth ミドルウェアを用意したらここで掛ける(質問機能はAPI費用が発生するため)
       # - traefik.http.routers.sre-agent.middlewares=oauth@file
       - traefik.http.services.sre-agent.loadbalancer.server.port=8080
-
-  # ネットワーク機器のSNMP取得。RTX1300 / スイッチの if_mib を VictoriaMetrics に入れる
-  snmp-exporter:
-    image: prom/snmp-exporter:latest
-    restart: unless-stopped
-    networks: [logstack]
-
-  # 機器への疎通(ICMP)。probe_success / probe_duration_seconds を出す
-  blackbox-exporter:
-    image: prom/blackbox-exporter:latest
-    restart: unless-stopped
-    cap_add: [NET_RAW]
-    networks: [logstack]
 
 volumes:
   sre-agent-data:

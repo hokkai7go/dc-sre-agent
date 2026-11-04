@@ -52,9 +52,13 @@ pveum acl modify / --tokens 'sre-agent@pve!dashboard' --roles PVEAuditor
 
 2行目で表示されるシークレットは一度しか出ないので控えておきます。Proxmox の証明書が自己署名なら、ノードの `/etc/pve/pve-root-ca.pem` をコピーして `config.yml` の `ca_file` に指定します。
 
-### 2. SNMP と ICMP のメトリクスを VictoriaMetrics に入れる
+### 2. SNMP と ICMP のメトリクスを確認する
 
-`deploy/scrape.example.yml` を既存の scrape 設定に足し、`snmp-exporter` と `blackbox-exporter` を立てます(`deploy/docker-compose.yml` に入れてあります)。RTX1300 側では SNMPv2c の読み取りコミュニティを設定しておきます。
+既存の基盤で `snmp-exporter` / `blackbox-exporter` が動き、VictoriaMetrics に取り込まれている前提です(このリポジトリでは立てません)。`config.yml` の次の値を既存の scrape 設定に合わせます。
+
+- `watch.network.ping_job`: `probe_success` を出している job 名(現状 `blackbox-icmp`)
+- `watch.network.snmp_job`: SNMP の job 名にマッチする正規表現(現状の `snmp_rtx` は `snmp.*` にマッチ)
+- `watch.network.devices[].instance`: scrape の `instance` ラベル(機器の IP)
 
 syslog はすでに VictoriaLogs に入っている前提です。Proxmox ノードの syslog も同じ基盤に送っておくと、Proxmox担当がノードのOSログまで読めるようになります。
 
