@@ -1,4 +1,4 @@
-FROM ruby:3.3-slim
+FROM ruby:4.0.9-slim
 
 # 依存gemなし。標準ライブラリだけで動く
 ENV LANG=C.UTF-8 TZ=Asia/Tokyo
