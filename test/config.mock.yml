@@ -1,0 +1,31 @@
+# test/mock_backends.rb に向けた動作確認用の設定
+site: 大阪DC(モック)
+data_dir: ./tmp/mock-data
+grafana_url: http://localhost:3000
+listen: { host: 127.0.0.1, port: 8088 }
+claude:
+  api_key: mock-key
+  base_url: http://127.0.0.1:9900
+  orchestrator_model: claude-opus-5-5
+  subagent_model: claude-sonnet-5-5
+  cooldown_minutes: 15
+  daily_investigation_limit: 30
+sources:
+  victoria_metrics: { url: http://127.0.0.1:9900 }
+  victoria_logs: { url: http://127.0.0.1:9900 }
+  proxmox: { url: http://127.0.0.1:9900, token_id: x, token_secret: y }
+watch:
+  interval_seconds: 5
+  group_window_minutes: 1
+  network:
+    devices:
+      - { name: rtx1300, instance: 192.168.101.1, role: 境界ルータ }
+      - { name: core-sw01, instance: 192.168.101.2, role: コアスイッチ }
+      - { name: pve01, instance: 192.168.101.11, role: Proxmoxノード, critical: false }
+  proxmox: { critical_vms: [100, 101] }
+  logs:
+    host_field: hostname
+    error_threshold: 30
+    security_patterns:
+      - { name: フィルタで遮断された通信の急増, query: '"Rejected at"', threshold: 200 }
+      - { name: ログイン失敗の連続, query: 'i:"login fail"', threshold: 10 }

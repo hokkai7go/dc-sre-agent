@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+$stdout.sync = true
+# ロケール未設定のコンテナでも日本語の設定・ログを扱えるようにする
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+require_relative "../lib/sre_agent"
+
+config_path = ARGV[0] || ENV.fetch("SRE_AGENT_CONFIG", File.expand_path("../config/config.yml", __dir__))
+abort "設定ファイルがありません: #{config_path}" unless File.exist?(config_path)
+
+SreAgent.boot(config_path)
+%w[INT TERM].each { |sig| trap(sig) { exit } }
+sleep

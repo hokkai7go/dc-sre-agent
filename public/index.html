@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DC監視エージェント</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="site">
+    <h1 id="site">DC監視エージェント</h1>
+    <p id="verdict" class="verdict" aria-live="polite">状態を取得しています</p>
+  </div>
+  <dl class="meta">
+    <div><dt>最終チェック</dt><dd id="last-check">—</dd></div>
+    <div><dt>本日の自動調査</dt><dd id="agent-budget">—</dd></div>
+    <div><dt>接続</dt><dd id="conn" class="conn">接続中</dd></div>
+  </dl>
+</header>
+
+<main class="layout">
+  <section class="col-main">
+    <div class="strip" id="strip">
+      <article class="sys" data-sys="network"><h2>ネットワーク</h2><p class="sys-state">—</p><p class="sys-detail"></p></article>
+      <article class="sys" data-sys="proxmox"><h2>Proxmox</h2><p class="sys-state">—</p><p class="sys-detail"></p></article>
+      <article class="sys" data-sys="logs"><h2>ログ</h2><p class="sys-state">—</p><p class="sys-detail"></p></article>
+    </div>
+
+    <section class="block" aria-labelledby="h-inc">
+      <div class="block-head">
+        <h2 id="h-inc">インシデント</h2>
+        <label class="toggle"><input type="checkbox" id="show-closed"> 復旧済みも表示</label>
+      </div>
+      <ol id="incidents" class="incidents"></ol>
+    </section>
+
+    <div class="grid2">
+      <section class="block" aria-labelledby="h-dev">
+        <div class="block-head"><h2 id="h-dev">ネットワーク機器</h2><a class="grafana" data-grafana hidden>Grafanaで推移を見る</a></div>
+        <table class="table"><thead><tr><th>機器</th><th>疎通</th><th class="num">応答</th><th>SNMP</th></tr></thead><tbody id="devices"></tbody></table>
+      </section>
+      <section class="block" aria-labelledby="h-pve">
+        <div class="block-head"><h2 id="h-pve">Proxmox</h2><span id="guests" class="muted"></span></div>
+        <div id="nodes" class="bars"></div>
+        <h3 class="sub">ストレージ</h3>
+        <div id="storages" class="bars"></div>
+      </section>
+    </div>
+
+    <section class="block" aria-labelledby="h-logs">
+      <div class="block-head"><h2 id="h-logs">ログ</h2><span id="log-window" class="muted"></span></div>
+      <div class="grid2 tight">
+        <table class="table"><thead><tr><th>ホスト</th><th class="num">件数</th><th class="num">エラー</th></tr></thead><tbody id="log-hosts"></tbody></table>
+        <div>
+          <ul id="security" class="security"></ul>
+          <ol id="recent-errors" class="loglines"></ol>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <aside class="col-agent" aria-labelledby="h-agent">
+    <div class="agent-head">
+      <h2 id="h-agent">エージェントの動き</h2>
+      <p class="muted">統括エージェントが担当に依頼し、並行して調べる様子を表示します</p>
+    </div>
+    <form id="ask" class="ask">
+      <label for="ask-q">統括エージェントに質問する</label>
+      <div class="ask-row">
+        <input id="ask-q" name="q" autocomplete="off" placeholder="例: 昨夜からpve02のメモリが増えている理由は？">
+        <button type="submit">質問する</button>
+      </div>
+      <p id="ask-msg" class="ask-msg" role="status"></p>
+    </form>
+    <div id="runs" class="runs"></div>
+  </aside>
+</main>
+<script src="/assets/app.js"></script>
+</body>
+</html>

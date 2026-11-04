@@ -1,0 +1,79 @@
+# 大阪DC 監視エージェントの設定例。config/config.yml にコピーして編集する。
+# ${NAME} は環境変数で置き換わる。秘密情報はここに直接書かない。
+
+site: 大阪DC
+data_dir: ./data
+grafana_url: https://grafana.intra.i-style.jp   # 数値の推移はGrafanaで見る(リンクを出すだけ)
+
+listen:
+  host: 0.0.0.0
+  port: 8080
+
+claude:
+  api_key: ${ANTHROPIC_API_KEY}           # 未設定なら監視とダッシュボードだけで動く
+  base_url: https://api.anthropic.com
+  orchestrator_model: claude-opus-5-5     # 統括。判断の質が効くので上位モデル
+  subagent_model: claude-sonnet-5-5       # 担当。ツールを何度も呼ぶので費用と速さを優先
+  orchestrator_max_turns: 10
+  subagent_max_turns: 8
+  max_delegations: 6                      # 1回の調査で担当へ依頼できる回数
+  auto_investigate: true                  # 異常検知時に自動で調査する
+  investigate_min_severity: warning       # これ以上の重大度で自動調査
+  cooldown_minutes: 15                    # 同じインシデントの再調査間隔
+  daily_investigation_limit: 30           # 自動調査の1日上限(手動の再調査・質問は対象外)
+
+sources:
+  victoria_metrics:
+    url: http://victoriametrics:8428
+  victoria_logs:
+    url: http://victorialogs:9428
+  proxmox:
+    url: https://pve01.intra.i-style.jp:8006
+    token_id: ${PVE_TOKEN_ID}             # 例: sre-agent@pve!dashboard
+    token_secret: ${PVE_TOKEN_SECRET}
+    verify_tls: true
+    ca_file:                              # 自己署名なら /etc/pve/pve-root-ca.pem をコピーして指定
+
+watch:
+  interval_seconds: 60
+  group_window_minutes: 3                 # 直近この時間内に新しいシグナルが出たインシデントに、次のシグナルを相乗りさせる
+  resolve_after_cycles: 2                 # シグナルが連続でこの回数消えたら復旧とみなす
+
+  network:
+    ping_job: blackbox-icmp               # probe_success を出している scrape job 名(正規表現可)
+    snmp_job: snmp.*
+    if_error_rate_threshold: 1            # errors/s
+    if_util_threshold: 0.9                # 帯域使用率
+    devices:                              # instance は scrape の instance ラベルと一致させる
+      - name: rtx1300
+        instance: 192.168.101.1
+        log_host: rtx1300                 # VictoriaLogs の hostname フィールド値
+        role: 境界ルータ(自宅とIPsec+BGP)
+      - name: core-sw01
+        instance: 192.168.101.2
+        role: コアスイッチ
+      - name: pve01
+        instance: 192.168.101.11
+        role: Proxmoxノード
+        critical: false                   # 疎通断でも重大扱いにしない
+
+  proxmox:
+    cpu_threshold: 0.9
+    mem_threshold: 0.9
+    storage_threshold: 0.85
+    task_failure_window_minutes: 60
+    critical_vms: []                      # 常時稼働が必要なVMID。例: [100, 101]
+
+  logs:
+    host_field: hostname
+    window_minutes: 5
+    error_query: 'severity:~"^(err|crit|alert|emerg)"'
+    error_threshold: 30
+    security_patterns:                    # RTX系のsyslog文言は機種とファームで違うので実ログで確認して調整する
+      - name: フィルタで遮断された通信の急増
+        query: '"Rejected at"'
+        threshold: 200
+      - name: ログイン失敗の連続
+        query: 'i:"login fail" OR i:"authentication failure" OR "Failed password"'
+        threshold: 10
+        severity: warning
