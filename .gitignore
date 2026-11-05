@@ -1,0 +1,14 @@
+# 秘密情報(APIキー・Proxmoxトークン)
+.env
+!.env.example
+*.pem
+
+# 環境ごとの設定(雛形は config/config.example.yml)
+config/config.yml
+deploy/config.yml
+
+# 実行時データ(インシデント履歴など)
+data/
+
+# 作業用
+tmp/

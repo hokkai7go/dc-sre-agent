@@ -1,6 +1,6 @@
-# /opt/sre-agent に置き、isinfra アカウントで `sudo -u isinfra docker compose up -d --build` する想定。
-# VictoriaMetrics / VictoriaLogs / Traefik と同じ Docker ネットワークに参加させる。
-# ネットワーク名は既存のログ基盤の compose に合わせて変えること。
+# /opt/sre-agent に置き、`sudo docker compose up -d --build` する想定。
+# 既存のログ基盤(logstack)の compose が作る logstack_default ネットワークに参加し、
+# victoriametrics / victorialogs をサービス名で参照する。
 
 services:
   sre-agent:
@@ -9,24 +9,20 @@ services:
     env_file: .env                       # ANTHROPIC_API_KEY / PVE_TOKEN_ID / PVE_TOKEN_SECRET
     volumes:
       - ./config.yml:/app/config/config.yml:ro
-      - ./pve-root-ca.pem:/app/config/pve-root-ca.pem:ro
+      # Proxmox が自己署名証明書なら pve-root-ca.pem を置いてこの行を有効にし、config.yml の ca_file に指定する
+      # - ./pve-root-ca.pem:/app/config/pve-root-ca.pem:ro
       - sre-agent-data:/app/data
-    networks: [logstack, proxy]          # VictoriaMetrics/VictoriaLogs と同じネットワーク
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=proxy
-      - traefik.http.routers.sre-agent.rule=Host(`sre.intra.i-style.jp`)
-      - traefik.http.routers.sre-agent.entrypoints=websecure
-      - traefik.http.routers.sre-agent.tls=true
-      # OAuth の forward-auth ミドルウェアを用意したらここで掛ける(質問機能はAPI費用が発生するため)
-      # - traefik.http.routers.sre-agent.middlewares=oauth@file
-      - traefik.http.services.sre-agent.loadbalancer.server.port=8080
+    networks: [logstack]
+    # ホストの systemd-resolved(docker0 で待ち受け)に問い合わせ、*.intra.i-style.jp を社内DNS 172.16.0.6 へ振り分ける
+    dns: [172.17.0.1]
+    # ダッシュボード。質問機能はAPI費用が発生するので、社内からのみ届くようにすること
+    ports:
+      - "8080:8080"
 
 volumes:
   sre-agent-data:
 
 networks:
   logstack:
-    external: true
-  proxy:
+    name: logstack_default
     external: true

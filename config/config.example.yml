@@ -28,7 +28,7 @@ sources:
   victoria_logs:
     url: http://victorialogs:9428
   proxmox:
-    url: https://pve01.intra.i-style.jp:8006
+    url: https://proxmox.intra.i-style.jp
     token_id: ${PVE_TOKEN_ID}             # 例: sre-agent@pve!dashboard
     token_secret: ${PVE_TOKEN_SECRET}
     verify_tls: true

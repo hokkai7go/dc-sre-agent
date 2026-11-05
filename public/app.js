@@ -61,7 +61,7 @@ function renderSnapshot() {
     return `<tr><td>${esc(d.name)}<small>${esc(d.role || d.instance)}</small></td>
       <td><span class="dot ${cls}"></span>${d.ping === false ? "なし" : d.ping ? "あり" : "不明"}</td>
       <td class="num">${d.rtt_ms != null ? d.rtt_ms.toFixed(1) + "ms" : "—"}</td>
-      <td>${d.snmp == null ? "—" : d.snmp ? "取得中" : '<span style="color:var(--warn)">失敗</span>'}</td></tr>`;
+      <td>${d.snmp == null ? "—" : d.snmp ? "正常" : '<span style="color:var(--warn)">失敗</span>'}</td></tr>`;
   }).join("") : `<tr><td colspan="4" class="muted">${esc(net.error || "監視対象がありません。config.yml の devices を確認してください")}</td></tr>`;
 
   // Proxmox

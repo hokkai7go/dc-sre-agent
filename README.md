@@ -47,8 +47,11 @@ Ruby 4.0 の標準ライブラリだけで書いてあり、gem のインスト�
 ```sh
 pveum user add sre-agent@pve --comment "SRE監視エージェント(読み取り専用)"
 pveum user token add sre-agent@pve dashboard --privsep 1
+pveum acl modify / --users sre-agent@pve --roles PVEAuditor
 pveum acl modify / --tokens 'sre-agent@pve!dashboard' --roles PVEAuditor
 ```
+
+`--privsep 1` のトークンは、ユーザーとトークンの両方に付いた権限しか使えません。どちらか一方だけだと、ノード名しか見えずゲストやストレージが空になります。
 
 2行目で表示されるシークレットは一度しか出ないので控えておきます。Proxmox の証明書が自己署名なら、ノードの `/etc/pve/pve-root-ca.pem` をコピーして `config.yml` の `ca_file` に指定します。
 
@@ -62,18 +65,44 @@ pveum acl modify / --tokens 'sre-agent@pve!dashboard' --roles PVEAuditor
 
 syslog はすでに VictoriaLogs に入っている前提です。Proxmox ノードの syslog も同じ基盤に送っておくと、Proxmox担当がノードのOSログまで読めるようになります。
 
-### 3. 設定して起動する
+### 3. 社内DNS(*.intra.i-style.jp)を引けるようにする
+
+`proxmox.intra.i-style.jp` などの社内名は社内DNS `172.16.0.6` にしか登録されていません。ホストの systemd-resolved で `intra.i-style.jp` 配下だけをこのサーバーに振り分け、それ以外は従来の DNS(192.168.101.1)を使います。
+
+```sh
+sudo mkdir -p /etc/systemd/resolved.conf.d
+sudo tee /etc/systemd/resolved.conf.d/intra.conf <<'CONF'
+[Resolve]
+DNS=172.16.0.6
+Domains=~intra.i-style.jp
+# コンテナから使えるよう docker0 のアドレスでも待ち受ける
+DNSStubListenerExtra=172.17.0.1
+CONF
+sudo systemctl restart systemd-resolved
+resolvectl query proxmox.intra.i-style.jp
+```
+
+Docker のコンテナはホストの 127.0.0.53 を使わず上流サーバーへ直接問い合わせるため、ホストの振り分けがそのままでは効きません。そこで `docker-compose.yml` の `dns: [172.17.0.1]` で、コンテナの名前解決をホストの systemd-resolved に向けています。この設定がないホストで起動すると名前を一切引けず、Claude API にも届かなくなります。ufw などでホスト宛ての53番を絞っている場合は、`logstack_default` のサブネットから許可してください。
+
+コンテナから引けるかは次で確認できます。
+
+```sh
+sudo docker compose exec sre-agent ruby -rsocket -e \
+  'p Addrinfo.getaddrinfo("proxmox.intra.i-style.jp", 443).first.ip_address'
+```
+
+### 4. 設定して起動する
 
 ```sh
 cd /opt/sre-agent/deploy
 cp ../config/config.example.yml config.yml   # 機器・しきい値を編集
 cp .env.example .env                          # APIキーとトークンを記入
-sudo -u isinfra docker compose up -d --build
+sudo docker compose up -d --build
 ```
 
-`docker-compose.yml` のネットワーク名(`logstack` / `proxy`)は既存の compose に合わせて変えてください。`pve-root-ca.pem` を使わない場合はその volume 行を消します(存在しないファイルをマウントするとディレクトリが作られて起動に失敗します)。
+`docker-compose.yml` は既存のログ基盤が作る `logstack_default` ネットワークに参加し、`victoriametrics` / `victorialogs` をサービス名で参照します。Proxmox の証明書が自己署名なら、`deploy/pve-root-ca.pem` を置いて compose の該当 volume 行を有効にします(存在しないファイルをマウントするとディレクトリが作られて起動に失敗します)。
 
-Traefik 経由で `sre.intra.i-style.jp` に出す labels を入れてあります。質問機能は API 費用が発生するので、OAuth の forward-auth を用意したら `middlewares` の行を有効にしてください。それまではVPN内からしか届かないことを前提にしています。
+ダッシュボードはホストの 8080 番で公開します。質問機能は API 費用が発生するので、社内/VPN内からしか届かないようにしてください。
 
 `ANTHROPIC_API_KEY` を空にして起動すると、エージェントなしの監視とダッシュボードだけで動きます。しきい値の調整を先に済ませたいときに使えます。
 
